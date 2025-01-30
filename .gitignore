@@ -1,1 +1,3 @@
 tg_bot.code-workspace
+.env
+*.pyc
