@@ -4,7 +4,8 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import default_state, State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from functions import calculate_daily_needs
+from functions import calculate_daily_needs, get_calories_from_food
+from googletrans import Translator
 
 
 # Словарь для хранения данных пользователей
@@ -20,6 +21,8 @@ class Form(StatesGroup):
     city = State()
     calorie_goal = State()
     confirmation = State()  # состояние для подтверждения
+    log_water = State() # логирование воды
+    log_food = State() # логирование воды
 
 # Обработчик на команду /start
 # @dp.message(Command("start"))
@@ -139,7 +142,10 @@ async def process_calorie_goal_sent(message: types.Message, state: FSMContext):
     user_dict[user_id]['calorie_goal'] = message.text
 
     # Рассчитываем дневную норму калорий и воды
-    daily_calories, daily_water = await calculate_daily_needs(user_dict[user_id])
+    calories_norm, water_norm = await calculate_daily_needs(user_dict[user_id])
+    # Записываем рассчитанные значения в словарь
+    user_dict[user_id]['calories norm'] = calories_norm
+    user_dict[user_id]['water norm'] = water_norm
 
     # Формируем сообщение с подтверждением введенных данных
     confirmation_message = (
@@ -151,8 +157,8 @@ async def process_calorie_goal_sent(message: types.Message, state: FSMContext):
         f"Уровень активности: {user_dict[user_id].get('activity_level')} минут в день\n"
         f"Город: {user_dict[user_id].get('city')}\n"
         f"Цель по калориям: {user_dict[user_id].get('calorie_goal')} калорий в день\n"
-        f"Рекомендуемая суточная норма калорий для ваших параметров: {daily_calories}\n"
-        f"Рекомендуемая суточная норма воды для ваших параметров: {daily_water}\n"
+        f"Рекомендуемая суточная норма калорий для ваших параметров: {calories_norm}\n"
+        f"Рекомендуемая суточная норма воды для ваших параметров: {water_norm}\n"
         f"\nЕсли все верно, напишите 'да', если хотите изменить данные - напишите 'нет'."
     )
 
@@ -173,3 +179,54 @@ async def process_change_profile(message: types.Message, state: FSMContext):
     await message.answer("Хорошо! Давайте начнем заново. "
                          "Введите команду /set_profile для повторного заполнения профиля.")
     await state.clear()  # Завершаем состояние и очищаем данные после завершения диалога
+
+
+# Обработчик логирования количества выпитой воды
+async def process_log_water(message: types.Message, state: FSMContext):
+    # Запрашиваем количество воды
+    await message.answer("Сколько миллилитров воды вы выпили?")
+    # Устанавливаем состояние ожидания ввода
+    await state.set_state(Form.log_water)
+
+# Обработчик ввода количества воды
+async def process_log_water_amount(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id  # Получаем уникальный ID пользователя
+    # Сохраняем введенное значение в словарь с данными по конкретному пользователю
+    water_amount = float(message.text)
+    user_dict[user_id]['logged_water'] = user_dict[user_id].get('logged_water', 0) + water_amount
+    await message.answer(f"До выполнения суточной нормы осталось выпить\
+                          {user_dict[user_id].get('water norm') - user_dict[user_id].get('logged_water')} мл")
+    # Завершаем состояние после обработки
+    await state.clear()
+
+
+# Обработчик логирования количества потребленных калорий
+async def process_log_food(message: types.Message, state: FSMContext):
+    # Запрашиваем количество съеденного
+    await message.answer("Что вы сегодня съели?\n"
+                         "Введите в формате <еда> <вес в граммах>")
+    # Устанавливаем состояние ожидания ввода
+    await state.set_state(Form.log_food)
+
+
+# Обработчик ввода количества воды
+async def process_log_food_amount(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id  # Получаем уникальный ID пользователя
+    # Сохраняем введенное значение в словарь с данными по конкретному пользователю
+    *food_name, food_weight = message.text.split()
+    food_data = await get_calories_from_food(food_name, food_weight)
+    if food_data and 'foods' in food_data:
+        food_info = food_data['foods'][0]
+        # description = food_info.get('description', 'Нет описания')
+        calories = next((nutrient['value'] for nutrient in food_info['foodNutrients'] if nutrient['nutrientName'] == 'Energy'))
+        calories = calories * food_weight / 100
+        user_dict[user_id]['logged_calories'] = user_dict[user_id].get('logged_calories', 0) + calories
+        if user_dict[user_id]['logged_calories'] >= user_dict[user_id]['calories_goal']:
+
+        # response_message = f"Продукт: {description}\nКалории: {calories} ккал"
+        await message.answer(response_message)
+    else:
+        await message.answer("Продукт не найден.")
+
+    # Завершаем состояние после обработки
+    await state.clear()

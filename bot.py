@@ -22,6 +22,10 @@ from handlers import (
     process_calorie_goal_sent,
     process_confirm_profile,
     process_change_profile,
+    process_log_water,
+    process_log_water_amount,
+    process_log_food,
+    process_log_food_amount,
     Form
 )
 
@@ -53,6 +57,10 @@ dp.message.register(process_calorie_goal_sent, StateFilter(Form.calorie_goal), F
 dp.message.register(process_calorie_goal_sent, StateFilter(Form.calorie_goal), F.text.isdigit())
 dp.message.register(process_confirm_profile, StateFilter(Form.confirmation), F.text.lower() == 'да')
 dp.message.register(process_change_profile, StateFilter(Form.confirmation), F.text.lower() == 'нет')
+dp.message.register(process_log_water, Command('log_water'))
+dp.message.register(process_log_water_amount, StateFilter(Form.log_water), F.text.isdigit())
+dp.message.register(process_log_food, Command('log_food'))
+dp.message.register(process_log_food_amount, StateFilter(Form.log_food))
 
 
 # Запуск процесса поллинга новых апдейтов

@@ -4,6 +4,8 @@ import asyncio
 
 # получаем ключ для OpenWeatherMap API
 weather_api_key=config.weather_api_key.get_secret_value()
+# получаем ключ для Fatsecret API
+usada_api_key = config.usada_api_key.get_secret_value()
 
 # Брем функцию из ДЗ1, только теперь делаем запрос
 # асинхронным при помощи библиотеки aiohttp
@@ -61,11 +63,35 @@ async def calculate_daily_needs(user_data):
         bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161
 
     # Расчет суточной нормы калорий
-    daily_calories = int(bmr * activity_level)
+    calories_norm = int(bmr * activity_level)
 
     hotness_flag = await get_temperature_by_api(city=city, key=weather_api_key) > 25
 
     # Расчет суточной нормы воды сделаем как было предложено в условии ДЗ
-    daily_water = int(weight * 30 + 500 * activity_level / 30 + 750 * hotness_flag)
+    water_norm = int(weight * 30 + 500 * activity_level / 30 + 750 * hotness_flag)
 
-    return (daily_calories, daily_water)
+    return (calories_norm, water_norm)
+
+
+async def get_calories_burned(activity_type, activity_duration):
+    activites_calories = {'walking': 1000}
+
+
+async def get_calories_from_food(food_name, food_weight):
+    api_key = usada_api_key
+    url = "https://api.nal.usda.gov/fdc/v1/foods/search"
+
+    params = {
+        'api_key': api_key,
+        'query': food_name,
+        'dataType': 'Survey (FNDDS)'
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, params=params) as response:
+            if response.status == 200:
+                food_data = await response.json()
+                return food_data
+            else:
+                print(f"Ошибка запроса: {response.status} - {await response.text()}")
+                return None

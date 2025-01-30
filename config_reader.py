@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     # Вместо str используем SecretStr
     bot_token: SecretStr
     weather_api_key: SecretStr
+    usada_api_key: SecretStr
 
     # В данном случае будет использоваться файла .env, который будет прочитан
     # с кодировкой UTF-8
