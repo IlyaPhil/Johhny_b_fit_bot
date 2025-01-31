@@ -74,11 +74,7 @@ async def calculate_daily_needs(user_data):
     return (calories_norm, water_norm)
 
 
-async def get_calories_burned(activity_type, activity_duration):
-    activites_calories = {'walking': 1000}
-
-
-async def get_calories_from_food(food_name, food_weight):
+async def get_calories_from_food(food_name):
     api_key = usada_api_key
     url = "https://api.nal.usda.gov/fdc/v1/foods/search"
 
