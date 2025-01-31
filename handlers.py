@@ -4,7 +4,7 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import default_state, State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from functions import calculate_daily_needs, get_calories_from_food
+from functions import calculate_daily_needs, get_calories_from_food, rus_eng_translate
 from googletrans import Translator
 
 
@@ -19,7 +19,7 @@ class Form(StatesGroup):
     age = State()
     activity_level = State()
     city = State()
-    calorie_goal = State()
+    calories_goal = State()
     confirmation = State()  # состояние для подтверждения
     log_water = State() # логирование воды
     log_food = State() # логирование воды
@@ -127,20 +127,6 @@ async def process_city_sent(message: types.Message, state: FSMContext):
     user_id = message.from_user.id  # Получаем уникальный ID пользователя
     user_dict[user_id]['city'] = message.text
 
-    await message.answer(text='Спасибо!\n\nА теперь введите желаемое '
-                         'количество потребляемых калорий в день')
-    # Устанавливаем состояние ожидания ввода целевого уровня калорий
-    await state.set_state(Form.calorie_goal)
-    state.update_data(calorie_goal_level=message.text)
-
-
-# Обработчик ввода цели по калориям
-# @dp.message(StateFilter(Form.calorie_goal), F.text.isdigit())
-async def process_calorie_goal_sent(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
-    # Сохраняем введенное количество калорий в словаре пользователей по ключу "calorie_goal"
-    user_dict[user_id]['calorie_goal'] = message.text
-
     # Рассчитываем дневную норму калорий и воды
     calories_norm, water_norm = await calculate_daily_needs(user_dict[user_id])
     # Записываем рассчитанные значения в словарь
@@ -156,13 +142,29 @@ async def process_calorie_goal_sent(message: types.Message, state: FSMContext):
         f"Возраст: {user_dict[user_id].get('age')} лет\n"
         f"Уровень активности: {user_dict[user_id].get('activity_level')} минут в день\n"
         f"Город: {user_dict[user_id].get('city')}\n"
-        f"Цель по калориям: {user_dict[user_id].get('calorie_goal')} калорий в день\n"
+
         f"Рекомендуемая суточная норма калорий для ваших параметров: {calories_norm}\n"
-        f"Рекомендуемая суточная норма воды для ваших параметров: {water_norm}\n"
-        f"\nЕсли все верно, напишите 'да', если хотите изменить данные - напишите 'нет'."
+        f"Рекомендуемая суточная норма воды для ваших параметров: {water_norm}"
     )
 
     await message.answer(confirmation_message)
+    await message.answer(text='Спасибо!\nЕсли хотите, можете указать свою цель по '
+                         'количеству потребляемых калорий в день, отличную от '
+                         'суточной нормы, либо напишите "нет"')
+    await state.set_state(Form.calories_goal)  # Переходим к состоянию подтверждения
+
+    # Обработчик ввода цели по калориям
+async def process_calorie_goal_sent(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id  # Получаем уникальный ID пользователя
+    # Устанавливаем состояние ожидания ввода целевого уровня калорий
+    if message.text != 'нет':
+        # Сохраняем введенное количество калорий в словаре пользователей по ключу "calories_goal"
+        user_dict[user_id]['calories_goal'] = message.text
+        await message.answer('Данные приняты')
+    else:
+        user_dict[user_id]['calories_goal'] = None
+        await message.answer('Ну и живи, как знаешь!')
+    await message.answer("Если все верно, напишите 'да', если хотите изменить данные - напишите 'нет'")
     await state.set_state(Form.confirmation)  # Переходим к состоянию подтверждения
 
 
@@ -170,7 +172,8 @@ async def process_calorie_goal_sent(message: types.Message, state: FSMContext):
 # @dp.message(StateFilter(Form.confirmation), F.text.lower() == 'да')
 async def process_confirm_profile(message: types.Message, state: FSMContext):
     await message.answer("Ваш профиль успешно сохранен!")
-    await state.clear()  # Завершаем состояние и очищаем данные после завершения диалога
+    # Завершаем состояние после обработки
+    await state.clear()
 
 
 # Обработчик изменения данных пользователем
@@ -214,19 +217,25 @@ async def process_log_food_amount(message: types.Message, state: FSMContext):
     user_id = message.from_user.id  # Получаем уникальный ID пользователя
     # Сохраняем введенное значение в словарь с данными по конкретному пользователю
     *food_name, food_weight = message.text.split()
+    food_name = ' '.join(food_name)
+    food_name = await rus_eng_translate(food_name)
     food_data = await get_calories_from_food(food_name, food_weight)
     if food_data and 'foods' in food_data:
         food_info = food_data['foods'][0]
         # description = food_info.get('description', 'Нет описания')
         calories = next((nutrient['value'] for nutrient in food_info['foodNutrients'] if nutrient['nutrientName'] == 'Energy'))
-        calories = calories * food_weight / 100
+        calories = calories * float(food_weight) / 100
         user_dict[user_id]['logged_calories'] = user_dict[user_id].get('logged_calories', 0) + calories
-        if user_dict[user_id]['logged_calories'] >= user_dict[user_id]['calories_goal']:
+        if user_dict[user_id]['calories_goal'] is not None:
+            calories_diff = float(user_dict[user_id]['calories_goal']) - user_dict[user_id]['logged_calories']
 
-        # response_message = f"Продукт: {description}\nКалории: {calories} ккал"
-        await message.answer(response_message)
-    else:
-        await message.answer("Продукт не найден.")
+        else:
+            calories_diff = user_dict[user_id]['calories_norm'] - user_dict[user_id]['logged_calories']
+
+        if calories_diff > 0:
+            await message.answer(f"До выполнения суточной нормы осталось получить {calories_diff} кал")
+        else:
+            await message.answer(f"Поздравляю, вы выполнили цель по количеству калорий! {calories_diff} кал")
 
     # Завершаем состояние после обработки
     await state.clear()

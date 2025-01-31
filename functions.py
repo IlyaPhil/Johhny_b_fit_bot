@@ -1,6 +1,7 @@
 from config_reader import config
 import aiohttp
 import asyncio
+from googletrans import Translator
 
 # получаем ключ для OpenWeatherMap API
 weather_api_key=config.weather_api_key.get_secret_value()
@@ -95,3 +96,9 @@ async def get_calories_from_food(food_name, food_weight):
             else:
                 print(f"Ошибка запроса: {response.status} - {await response.text()}")
                 return None
+
+
+async def rus_eng_translate(text):
+    async with Translator() as translator:
+        result = await translator.translate(text)
+        return result.text
