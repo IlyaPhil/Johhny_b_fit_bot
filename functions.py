@@ -1,6 +1,7 @@
 """
 Импорт зависимостей
 """
+from datetime import datetime, timedelta
 import aiohttp
 from googletrans import Translator
 from config_reader import config
@@ -110,3 +111,19 @@ async def rus_eng_translate(text):
     async with Translator() as translator:
         result = await translator.translate(text)
         return result.text
+
+
+def check_time_elapsed(user_data):
+    """
+    Проверка того, прошло ли 24 часа с момента начала логирования,
+    и если да, то - обнуление логов
+    """
+    # Проверяем, прошло ли 24 часа с момента начала периода логирования
+    current_time = datetime.now()
+    if current_time - user_data['last_logging_start_time'] >= timedelta(days=1):
+        # Если да, то обнуляем все логи
+        user_data['logged_water'] = 0
+        user_data['calories_consumed'] = 0
+        user_data['calories_burned'] = 0
+        user_data['logged_calories'] = 0
+    return user_data

@@ -22,6 +22,7 @@ from handlers import (
     process_calorie_goal_sent,
     process_confirm_profile,
     process_change_profile,
+    process_start_logging_cmd,
     process_log_water,
     process_log_food,
     process_log_water_amount,
@@ -61,6 +62,7 @@ dp.message.register(process_city_sent, StateFilter(Form.city), F.text.isalpha())
 dp.message.register(process_calorie_goal_sent, StateFilter(Form.calories_goal))
 dp.message.register(process_confirm_profile, StateFilter(Form.confirmation), F.text.lower() == 'да')
 dp.message.register(process_change_profile, StateFilter(Form.confirmation), F.text.lower() == 'нет')
+dp.message.register(process_start_logging_cmd, Command('start_logging'))
 dp.message.register(process_log_water, Command('log_water'))
 dp.message.register(process_log_water_amount, StateFilter(Form.log_water), F.text.isdigit())
 dp.message.register(process_log_food, Command('log_food'))

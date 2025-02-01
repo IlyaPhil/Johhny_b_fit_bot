@@ -1,18 +1,23 @@
 """
 Импортируем зависимости
 """
+from datetime import datetime
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from functions import (calculate_daily_needs,
                        get_calories_from_food,
-                       rus_eng_translate
+                       rus_eng_translate,
+                       check_time_elapsed
                       )
 
 
 # Словарь для хранения данных пользователей
 user_dict = {}
+
+# Время запуска бота
+start_time = datetime.now()
 
 # Cоздаем класс, для группы состояний нашего FSM
 class Form(StatesGroup):
@@ -80,7 +85,7 @@ async def process_start_cmd(message: types.Message):
     await message.answer("Привет! Я готов следить за твоими калориями "
                          "и количеством выпитой воды.\n"
                          "Чтобы перейти к заполнению профиля введите команду /set_profile\n"
-                         "Чтобы выйти из процессы заполнения профиля введите команду /cancel"
+                         "Чтобы сбросить заполнение профиля введите команду /cancel"
     )
 
 
@@ -105,18 +110,18 @@ async def process_set_profile_cmd(message: types.Message):
     user_id = message.from_user.id
     # создаем словарь для нового пользователя
     user_dict[user_id] = {'gender': None,
-                           'weight': 0,
-                           'height': 0,
-                           'age': 0,
-                           'activity_level': None,
-                           'city': None,
-                           'water_norm': 0,
-                           'calories_norm': 0,
-                           'calories_goal': None,
-                           'logged_water': 0,
-                           'calories_consumed': 0,
-                           'calories_burned': 0,
-                           'logged_calories': 0
+                          'weight': 0,
+                          'height': 0,
+                          'age': 0,
+                          'activity_level': None,
+                          'city': None,
+                          'water_norm': 0,
+                          'calories_norm': 0,
+                          'calories_goal': None,
+                          'logged_water': 0,
+                          'calories_consumed': 0,
+                          'calories_burned': 0,
+                          'logged_calories': 0
                           }
 
     await message.answer('Укажите ваш пол', reply_markup=kb_gender)
@@ -213,7 +218,7 @@ async def process_city_sent(message: types.Message, state: FSMContext):
         f"Вес: {user_dict[user_id].get('weight')} кг\n"
         f"Рост: {user_dict[user_id].get('height')} см\n"
         f"Возраст: {user_dict[user_id].get('age')} лет\n"
-        f"Уровень активности: {user_dict[user_id].get('activity_level')} минут в день\n"
+        f"Коэффициент активности: {user_dict[user_id].get('activity_level')}\n"
         f"Город: {user_dict[user_id].get('city')}\n"
 
         f"Рекомендуемая суточная норма калорий для ваших параметров: {calories_norm}\n"
@@ -267,10 +272,27 @@ async def process_change_profile(message: types.Message, state: FSMContext):
     await state.clear()
 
 
+async def process_start_logging_cmd(message: types.Message):
+    """
+    Обработчик команды /start_logging
+    Нужен для того, чтобы фиксировать время начала логирования
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
+    user_dict[user_id]['last_logging_start_time'] = datetime.now()
+    await message.answer(f"Время начала логирования: {datetime.now()} "
+                         "Логирование будет сброшено через 24 часа")
+
+
 async def process_log_water(message: types.Message, state: FSMContext):
     """
     Обработчик логирования количества выпитой воды
     """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
+    # Проверяем, не прошло ли 24 часа с момента логирования
+    # Если прошло, то обнуляем логи
+    user_dict[user_id] = check_time_elapsed(user_dict[user_id])
     await message.answer("Сколько миллилитров воды вы выпили?")
     # Устанавливаем состояние ожидания ввода
     await state.set_state(Form.log_water)
@@ -296,7 +318,11 @@ async def process_log_food(message: types.Message, state: FSMContext):
     """
     Обработчик логирования количества потребленных калорий
     """
-
+     # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
+    # Проверяем, не прошло ли 24 часа с момента логирования
+    # Если прошло, то обнуляем логи
+    user_dict[user_id] = check_time_elapsed(user_dict[user_id])
     await message.answer("Что вы сегодня съели?")
     # Устанавливаем состояние ожидания ввода названия съеденных продуктов
     await state.set_state(Form.log_food_name)
@@ -371,6 +397,9 @@ async def process_log_workout(message: types.Message, state: FSMContext):
     """
     # Получаем уникальный ID пользователя
     user_id = message.from_user.id
+    # Проверяем, не прошло ли 24 часа с момента логирования
+    # Если прошло, то обнуляем логи
+    user_dict[user_id] = check_time_elapsed(user_dict[user_id])
     await message.answer("Выберите тип физической активности:", reply_markup=kb_workout)
     # Сохраняем user_id в состоянии
     await state.update_data(user_id = user_id)
