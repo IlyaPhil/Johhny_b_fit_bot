@@ -1,11 +1,14 @@
-from config_reader import config
+"""
+Импорт зависимостей
+"""
 import aiohttp
-import asyncio
 from googletrans import Translator
+from config_reader import config
+
 
 # получаем ключ для OpenWeatherMap API
 weather_api_key=config.weather_api_key.get_secret_value()
-# получаем ключ для Fatsecret API
+# получаем ключ для USADA API
 usada_api_key = config.usada_api_key.get_secret_value()
 
 # Брем функцию из ДЗ1, только теперь делаем запрос
@@ -49,23 +52,26 @@ async def get_temperature_by_api(city, key):
 # Используем формулу Миффлина-Сан Жеора для расчета базального метаболизма (BMR)
 # и затем умножим его на коэффициент физической активности
 async def calculate_daily_needs(user_data):
+    """
+    Расчет норм потребления воды и калорий для введенных параметров пользователя
+    """
+    # Получаем значения параметров из переданных данных пользователя
     weight = float(user_data['weight'])
     height = float(user_data['height'])
     age = int(user_data['age'])
     gender = user_data['gender']
     city = user_data['city']
-    # Предполагаем, что это коэффициент активности
     activity_level = float(user_data['activity_level'])
 
     # Расчет BMR
-    if gender.lower() == 'м':
+    if gender.lower() == 'мужской':
         bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5
     else:
         bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161
 
     # Расчет суточной нормы калорий
     calories_norm = int(bmr * activity_level)
-
+    # Добавляем флаг того, что текущая температура превышает 25 градусов
     hotness_flag = await get_temperature_by_api(city=city, key=weather_api_key) > 25
 
     # Расчет суточной нормы воды сделаем как было предложено в условии ДЗ
@@ -75,6 +81,9 @@ async def calculate_daily_needs(user_data):
 
 
 async def get_calories_from_food(food_name):
+    """
+    Получение калорийности продуктов по API
+    """
     api_key = usada_api_key
     url = "https://api.nal.usda.gov/fdc/v1/foods/search"
 
@@ -95,6 +104,9 @@ async def get_calories_from_food(food_name):
 
 
 async def rus_eng_translate(text):
+    """
+    Перевод названия продуктов с русского языка на английский
+    """
     async with Translator() as translator:
         result = await translator.translate(text)
         return result.text

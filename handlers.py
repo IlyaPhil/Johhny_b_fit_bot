@@ -1,12 +1,14 @@
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters.command import Command
-from aiogram.filters import StateFilter
+"""
+Импортируем зависимости
+"""
+from aiogram import types
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import default_state, State, StatesGroup
-from aiogram.fsm.storage.memory import MemoryStorage
-from functions import calculate_daily_needs, get_calories_from_food, rus_eng_translate
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
+from functions import (calculate_daily_needs,
+                       get_calories_from_food,
+                       rus_eng_translate
+                      )
 
 
 # Словарь для хранения данных пользователей
@@ -14,23 +16,25 @@ user_dict = {}
 
 # Cоздаем класс, для группы состояний нашего FSM
 class Form(StatesGroup):
-    user_id = State()
-    gender = State()
-    weight = State()
-    height = State()
-    age = State()
-    activity_level = State()
-    city = State()
-    calories_goal = State()
-    confirmation = State()  # состояние для подтверждения
-    log_water = State() # логирование воды
-    log_food = State
-    log_food_name = State() # логирование воды
-    log_food_amount = State() # логирование воды
-    log_workout = State()
-    workout_type = State()
-    food_name = State()
+    user_id = State()           # user_id
+    gender = State()            # пол
+    weight = State()            # вес
+    height = State()            # рост
+    age = State()               # возраст
+    activity_level = State()    # уровень активности
+    city = State()              # город проживания
+    calories_goal = State()     # цель по калориям
+    confirmation = State()      # подтверждение профиля
+    log_water = State()         # логирование воды
+    log_food = State            # логирование еды
+    log_food_name = State()     # логирование названия продуктов
+    log_food_amount = State()   # логирование количества продуктов
+    log_workout = State()       # логирование физ. активности
+    workout_type = State()      # тип физ. активности
+    food_name = State()         # логирование физ. активности
 
+
+# Виртуальная клавиатура для выбора пола
 kb_gender = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Мужской", callback_data='мужской')],
@@ -38,19 +42,23 @@ kb_gender = InlineKeyboardMarkup(
     ]
 )
 
-
+# Виртуальная клавиатура для выбора уровня физической активности
 kb_act_level = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Сидячий образ жизни (минимальная активность)", callback_data='1.2')],
-        [InlineKeyboardButton(text="Легкая активность (легкие упражнения 1-3 раза в неделю)", callback_data='1.375')],
-        [InlineKeyboardButton(text="Умеренная активность (умеренные упражнения 3-5 раз в неделю)", callback_data='1.55')],
-        [InlineKeyboardButton(text="Высокая активность (интенсивные упражнения 6-7 раз в неделю)", callback_data='1.735')],
+        [InlineKeyboardButton(text="Сидячий образ жизни (минимальная активность)",\
+                               callback_data='1.2')],
+        [InlineKeyboardButton(text="Легкая активность (легкие упражнения 1-3 раза в неделю)",\
+                               callback_data='1.375')],
+        [InlineKeyboardButton(text="Умеренная активность (умеренные упражнения 3-5 раз в неделю)",\
+                               callback_data='1.55')],
+        [InlineKeyboardButton(text="Высокая активность (интенсивные упражнения 6-7 раз в неделю)",\
+                               callback_data='1.735')],
         [InlineKeyboardButton(text="Экстремальная активность (очень тяжелые физические нагрузки,\
                                работа или тренировки дважды в день)", callback_data='1.9')]
     ]
 )
 
-
+# Виртуальная клавиатура для выбора вида физической активности
 kb_workout = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Бег", callback_data="9")],
@@ -64,26 +72,22 @@ kb_workout = InlineKeyboardMarkup(
     ]
 )
 
-# Обработчик на команду /start
-# @dp.message(Command("start"))
+
 async def process_start_cmd(message: types.Message):
+    """
+    Обработчик команды /start
+    """
     await message.answer("Привет! Я готов следить за твоими калориями "
                          "и количеством выпитой воды.\n"
                          "Чтобы перейти к заполнению профиля введите команду /set_profile\n"
-                         "Чтобы перейти к списку команд введите команду /help")
-
-# Обработчик на команду "/help"
-# @dp.message(Command('help'))
-async def process_help_cmd(message: types.Message):
-    await message.answer(
-        'Напиши мне что-нибудь и в ответ '
-        'я пришлю тебе твое сообщение'
+                         "Чтобы выйти из процессы заполнения профиля введите команду /cancel"
     )
 
 
-# Обработчик команды "/cancel"
-# @dp.message(Command(commands='cancel'), ~StateFilter(default_state))
 async def process_cancel_cmd(message: types.Message, state: FSMContext):
+    """
+    Обработчик команды /cancel
+    """
     await message.answer(
         text='Вы вышли из диалога\n'
              'Чтобы снова перейти к заполнению профиля - '
@@ -92,65 +96,92 @@ async def process_cancel_cmd(message: types.Message, state: FSMContext):
     # Сбрасываем состояние и очищаем данные, полученные внутри состояний
     await state.clear()
 
-# Обработчик на команду "/set_profile"
-# @dp.message(Command('set_profile'))
+
 async def process_set_profile_cmd(message: types.Message):
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
-    user_dict[user_id] = {}  # создаем словарь для нового пользователя
+    """
+    Обработчик на команду /set_profile
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
+    # создаем словарь для нового пользователя
+    user_dict[user_id] = {'gender': None,
+                           'weight': 0,
+                           'height': 0,
+                           'age': 0,
+                           'activity_level': None,
+                           'city': None,
+                           'water_norm': 0,
+                           'calories_norm': 0,
+                           'calories_goal': None,
+                           'logged_water': 0,
+                           'calories_consumed': 0,
+                           'calories_burned': 0,
+                           'logged_calories': 0
+                          }
+
     await message.answer('Укажите ваш пол', reply_markup=kb_gender)
-    # await state.set_state(Form.gender)  # Устанавливаем состояние ожидания ввода пола
 
 
-# Обработчик ввода пола
-# @dp.message(StateFilter(Form.gender), F.text.lower() in ('м', 'ж'))
 async def process_gender_sent(callback_query, state: FSMContext):
-    # user_id = message.from_user.id  # Получаем уникальный ID пользователяe
-    user_id = callback_query.from_user.id  # Получаем уникальный ID пользователя
-    # activity_level = float(callback_query.data)
+    """
+    Обработчик ввода пола через inline-keyboard
+    """
+    # Получаем уникальный ID пользователяe
+    user_id = callback_query.from_user.id
     # Сохраняем введенный пол в словаре пользователей по ключу "gender"
     user_dict[user_id]['gender'] = callback_query.data
 
-    await callback_query.message.answer(text='Спасибо!\n\nА теперь введите ваш вес в кг')
-    await state.set_state(Form.weight) # Устанавливаем состояние ожидания ввода веса
+    await callback_query.message.answer(text='Теперь введите ваш вес в кг')
+    # Устанавливаем состояние ожидания ввода веса
+    await state.set_state(Form.weight)
 
 
-# Обработчик ввода веса
-# @dp.message(StateFilter(Form.weight), F.text.isdigit())
 async def process_weight_sent(message: types.Message, state: FSMContext):
+    """
+    Обработчик ввода веса
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
     # Cохраняем введеный вес в хранилище по ключу "weight"
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
     user_dict[user_id]['weight'] = message.text
 
-    await message.answer(text='Спасибо!\n\nА теперь введите ваш рост в см')
+    await message.answer(text='Теперь введите ваш рост в см')
     # Устанавливаем состояние ожидания ввода роста
     await state.set_state(Form.height)
 
 
-# Обработчик ввода роста
-# @dp.message(StateFilter(Form.height), F.text.isdigit())
 async def process_height_sent(message: types.Message, state: FSMContext):
+    """
+    Обработчик ввода роста
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
     # Cохраняем введенный вес в хранилище по ключу "height"
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
     user_dict[user_id]['height'] = message.text
-    await message.answer(text='Спасибо!\n\nА теперь введите ваш возраст')
+    await message.answer(text='Теперь введите ваш возраст')
     # Устанавливаем состояние ожидания ввода возраста
     await state.set_state(Form.age)
 
 
-# Обработчик ввода возраста
-# @dp.message(StateFilter(Form.age), F.text.isdigit())
 async def process_age_sent(message: types.Message):
+    """
+    Обработчик ввода возраста
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
     # Cохраняем введенный вес в хранилище по ключу "age"
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
     user_dict[user_id]['age'] = message.text
-    await message.answer(text='Спасибо!\n\nА теперь определите ваш уровень '
+    await message.answer(text='Теперь определите ваш уровень '
                           'физической активности', reply_markup=kb_act_level)
 
 
-# Обработчик ввода уровня физической активности
 async def process_activity_sent(callback_query, state: FSMContext):
+    """
+    Обработчик ввода уровня физической активности
+    """
+    # Получаем уникальный ID пользователя
+    user_id = callback_query.from_user.id
     # Cохраняем введенный вес в хранилище по ключу "activity_level"
-    user_id = callback_query.from_user.id  # Получаем уникальный ID пользователя
     activity_level = float(callback_query.data)
     user_dict[user_id]['activity_level'] = activity_level
 
@@ -160,11 +191,13 @@ async def process_activity_sent(callback_query, state: FSMContext):
     await state.set_state(Form.city)
 
 
-# Обработчик ввода города
-# @dp.message(StateFilter(Form.city), F.text.isalpha())
 async def process_city_sent(message: types.Message, state: FSMContext):
+    """
+    Обработчик ввода города
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
     # Cохраняем введенный вес в хранилище по ключу "city"
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
     user_dict[user_id]['city'] = message.text
 
     # Рассчитываем дневную норму калорий и воды
@@ -188,134 +221,222 @@ async def process_city_sent(message: types.Message, state: FSMContext):
     )
 
     await message.answer(confirmation_message)
-    await message.answer(text='Спасибо!\nЕсли хотите, можете указать свою цель по '
+    await message.answer(text='Если хотите, можете указать свою цель по '
                          'количеству потребляемых калорий в день, отличную от '
                          'суточной нормы, либо напишите "нет"')
-    await state.set_state(Form.calories_goal)  # Переходим к состоянию подтверждения
-
-    # Обработчик ввода цели по калориям
-async def process_calorie_goal_sent(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
     # Устанавливаем состояние ожидания ввода целевого уровня калорий
+    await state.set_state(Form.calories_goal)
+
+
+async def process_calorie_goal_sent(message: types.Message, state: FSMContext):
+    """
+    Обработчик ввода цели по калориям
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
+    # Проверяем, выбрал ли пользователь собственную цель по калориям
     if message.text != 'нет':
-        # Сохраняем введенное количество калорий в словаре пользователей по ключу "calories_goal"
+        # Сохраняем введенное количество калорий в храниище по ключу "calories_goal"
         user_dict[user_id]['calories_goal'] = message.text
         await message.answer('Данные приняты')
+    # В противном случае оставляем значение None
     else:
-        user_dict[user_id]['calories_goal'] = None
         await message.answer('Ну и живи, как знаешь!')
-    await message.answer("Если все верно, напишите 'да', если хотите изменить данные - напишите 'нет'")
-    await state.set_state(Form.confirmation)  # Переходим к состоянию подтверждения
+    await message.answer("Если данные в профиле верны, напишите 'да', "
+                         "если хотите изменить данные - напишите 'нет'")
+    # Устанавливаем состояние подтверждения профиля
+    await state.set_state(Form.confirmation)
 
 
-# Обработчик подтверждения данных пользователем
 async def process_confirm_profile(message: types.Message, state: FSMContext):
+    """
+    Обработчик подтверждения данных пользователем
+    """
     await message.answer("Ваш профиль успешно сохранен!")
     # Завершаем состояние после обработки
     await state.clear()
 
 
-# Обработчик изменения данных пользователем
 async def process_change_profile(message: types.Message, state: FSMContext):
+    """
+    Обработчик изменения профиля данных пользователя
+    """
     await message.answer("Хорошо! Давайте начнем заново. "
                          "Введите команду /set_profile для повторного заполнения профиля.")
-    await state.clear()  # Завершаем состояние и очищаем данные после завершения диалога
+    # Завершаем состояние после завершения диалога
+    await state.clear()
 
 
-# Обработчик логирования количества выпитой воды
 async def process_log_water(message: types.Message, state: FSMContext):
-    # Запрашиваем количество воды
+    """
+    Обработчик логирования количества выпитой воды
+    """
     await message.answer("Сколько миллилитров воды вы выпили?")
     # Устанавливаем состояние ожидания ввода
     await state.set_state(Form.log_water)
 
-# Обработчик ввода количества воды
+
 async def process_log_water_amount(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
-    # Сохраняем введенное значение в словарь с данными по конкретному пользователю
-    water_amount = float(message.text)
-    user_dict[user_id]['logged_water'] = user_dict[user_id].get('logged_water', 0) + water_amount
+    """
+    Обработчик ввода количества воды
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
+    # Сохраняем введенное количество воды в храниище по ключу "logged_water"
+    water_amount = int(message.text)
+    user_dict[user_id]['logged_water'] = user_dict[user_id].get('logged_water') + water_amount
     await message.answer(f"До выполнения суточной нормы осталось выпить\
-                          {user_dict[user_id].get('water_norm') - user_dict[user_id].get('logged_water')} мл")
+                          {user_dict[user_id].get('water_norm') -\
+                            user_dict[user_id].get('logged_water')} мл")
     # Завершаем состояние после обработки
     await state.clear()
 
 
-# Обработчик логирования количества потребленных калорий
 async def process_log_food(message: types.Message, state: FSMContext):
-    # Запрашиваем количество съеденного
+    """
+    Обработчик логирования количества потребленных калорий
+    """
+
     await message.answer("Что вы сегодня съели?")
-    # Устанавливаем состояние ожидания ввода
+    # Устанавливаем состояние ожидания ввода названия съеденных продуктов
     await state.set_state(Form.log_food_name)
 
 
 async def process_log_food_name(message: types.Message, state: FSMContext):
-    food_name = message.text  # Получаем название продукта от пользователя
+    """
+    Обработчик логирования названия потребленных продуктов
+    """
+    food_name = message.text
     # Сохраняем наименование продукта в состоянии
     await state.update_data(log_food_name=food_name)
     await message.answer("Укажите вес съеденного в граммах")
-    await state.set_state(Form.log_food_amount)  # Переходим к следующему состоянию
+    # Устанавливаем состояние ввода количества съеденных продуктов
+    await state.set_state(Form.log_food_amount)
 
 
-# Обработчик ввода количества еды
 async def process_log_food_amount(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
-    food_weight = float(message.text)  # Преобразуем введенное значение в число
+    """
+    Обработчик логирования количества съеденных продуктов
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
+    food_weight = int(message.text)
+    # Получаем название продуктов из состояния
     user_data = await state.get_data()
     food_name = user_data.get('food_name')
-
+    # Переводим название продуктов с русского на английский
     food_name = await rus_eng_translate(food_name)
+    # Получаем калорийность введенных продуктов через API
     food_data = await get_calories_from_food(food_name)
+    # Извлекаем значение калорийности из полученного ответа
     if food_data and 'foods' in food_data:
         food_info = food_data['foods'][0]
-        # description = food_info.get('description', 'Нет описания')
-        calories = next((nutrient['value'] for nutrient in food_info['foodNutrients'] if nutrient['nutrientName'] == 'Energy'))
-        calories = calories * float(food_weight) / 100
-        user_dict[user_id]['logged_calories'] = user_dict[user_id].get('logged_calories', 0) + calories
+        calories = next((nutrient['value'] for nutrient in food_info['foodNutrients']\
+                          if nutrient['nutrientName'] == 'Energy'))
+        # Рассчитываем количество потребленных калорий с учетом массы продукта
+        calories = int(calories * food_weight / 100)
+        # Сохраняем количество потребленных калорий в хранилище по ключу "calories_consumed"
+        user_dict[user_id]['calories_consumed'] = \
+            user_dict[user_id].get('calories_consumed') + calories
+        # Сохраняем баланс калорий в хранилище по ключу "logged_calories"
+        user_dict[user_id]['logged_calories'] = \
+             user_dict[user_id].get('logged_calories') + calories
+        # Если пользователь утсановил сою цель по количеству калорий
+        # вычитаем из нее количество потребленных калорий
         if user_dict[user_id]['calories_goal'] is not None:
-            calories_diff = float(user_dict[user_id]['calories_goal']) - user_dict[user_id]['logged_calories']
+            calories_diff = int(user_dict[user_id]['calories_goal'])\
+                 - user_dict[user_id]['logged_calories']
 
+        # В противном случае вычитаем количество потребленных калорий из
+        # рекомендуемой суточной нормы
         else:
-            calories_diff = user_dict[user_id]['calories_norm'] - user_dict[user_id]['logged_calories']
-
+            calories_diff = user_dict[user_id]['calories_norm'] \
+                - user_dict[user_id]['logged_calories']
+        # Если цель по количеству калорий не достигнута,
+        # сообщаем пользователю о том, сколько калорий осталось получить
         if calories_diff > 0:
-            await message.answer(f"Вы получили {calories} ккал. До достижения цели осталось получить {calories_diff} ккал")
+            await message.answer(f"Вы получили {calories} ккал. "
+                                 f"До достижения цели осталось получить {calories_diff} ккал")
         else:
-            await message.answer(f"Поздравляю, вы выполнили цель по количеству калорий! {calories_diff} ккал")
+            await message.answer(f"Поздравляю, вы выполнили цель по количеству калорий! "
+                                 f"{calories_diff} ккал")
 
     # Завершаем состояние после обработки
     await state.clear()
 
-# Обработчик ввода логирования тренировок
+
 async def process_log_workout(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id  # Получаем уникальный ID пользователя
+    """
+    Обработчик логирования тренировок
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
     await message.answer("Выберите тип физической активности:", reply_markup=kb_workout)
     # Сохраняем user_id в состоянии
     await state.update_data(user_id = user_id)
 
 
 async def choose_workout(callback_query, state: FSMContext):
+    """
+    Обработчик выбора типа физической активности
+    """
     workout_type = callback_query.data
 
     # Сохраняем workout_type в состоянии
     await state.update_data(workout_type=workout_type)
-
     await callback_query.message.answer('Теперь введите продолжительность занятия в минутах')
     # Устанавливаем состояние ожидания ввода
     await state.set_state(Form.log_workout)
 
 
 async def specify_duration(message: types.Message, state: FSMContext):
-
-    workout_duration = int(message.text)  # Преобразуем введенное значение в число
+    """
+    Обработчик выбора типа физической активности
+    """
+    workout_duration = int(message.text)
     # Извлекаем данные из состояния
     user_data = await state.get_data()
-    # workout_type = user_data.get('workout_type')
     workout_calories = float(user_data.get('workout_type'))
     user_id = user_data.get('user_id')
+    # Извлекаем значение веса пользователя из словаря
     weight = float(user_dict[user_id]['weight'])
-    # calories_burned = get_calories_burned(workout_calories, workout_duration, weight)
-    calories_burned = float(workout_calories * weight * workout_duration / 60)
-    user_dict[user_id]['logged_calories'] = user_dict[user_id].get('logged_calories', 0) - calories_burned
+    # Рассчитываем количество сожженных калорий
+    calories_burned = int(workout_calories * weight * workout_duration / 60)
+    # Сохраняем сожженные калории в хранилище по ключу "calories_burned"
+    user_dict[user_id]['calories_burned'] \
+        = user_dict[user_id].get('calories_burned') + calories_burned
+    # Обновляем баланс калорий
+    user_dict[user_id]['logged_calories'] \
+        = user_dict[user_id].get('logged_calories') - calories_burned
+
     await message.answer(f'Поздравляю, вы сожгли {calories_burned} ккал')
-    await state.clear()  # Завершаем состояние
+    # Если продолжительность тренировки более 30 мин,
+    # то предлагаем увеличить норму воды
+    if workout_duration > 30:
+        user_dict[user_id]['water_norm'] += 500
+        await message.answer('Дополнительно Выпейте 500 мл воды')
+    # Завершаем состояние после обработки
+    await state.clear()
+
+
+async def process_check_progress_cmd(message: types.Message):
+    """
+    Обработчик команды /check_progress
+    """
+    # Получаем уникальный ID пользователя
+    user_id = message.from_user.id
+    progress_message = (
+       f"Вода:\n"
+       f"Выпито: {user_dict[user_id].get('logged_water')} "
+       f"мл из {user_dict[user_id].get('water_norm')} мл\n"
+       f"Осталось: {user_dict[user_id].get('water_norm') \
+                    - user_dict[user_id].get('logged_water')} мл\n\n"
+       f"Калории:\n"
+       f"Потреблено: {user_dict[user_id].get('calories_consumed')} ккал "
+       f"из {user_dict[user_id].get('calories_goal') or \
+             user_dict[user_id].get('calories_norm')} ккал\n"
+       f"Сожжено: {user_dict[user_id].get('calories_burned')} ккал\n"
+       f"Баланс: {user_dict[user_id].get('logged_calories')} ккал\n"
+    )
+
+    await message.answer(progress_message)

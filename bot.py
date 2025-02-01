@@ -1,16 +1,16 @@
-from config_reader import config
+"""
+Импорт зависимостей
+"""
 import asyncio
 import logging
-from aiogram import Bot, Dispatcher, types, F
+from aiogram import Bot, Dispatcher, F
 from aiogram.filters.command import Command
 from aiogram.filters import StateFilter
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import default_state, State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-# Импортируем хэндлеры из fsm_handlers.py
+from config_reader import config
+# Импортируем хэндлеры и fsm из handlers.py
 from handlers import (
     process_start_cmd,
-    process_help_cmd,
     process_cancel_cmd,
     process_set_profile_cmd,
     process_gender_sent,
@@ -30,6 +30,7 @@ from handlers import (
     process_log_workout,
     choose_workout,
     specify_duration,
+    process_check_progress_cmd,
     Form
 )
 
@@ -48,15 +49,14 @@ dp = Dispatcher(storage=storage)
 
 # Регистрация хэндлеров
 dp.message.register(process_start_cmd, Command("start"))
-dp.message.register(process_help_cmd, Command("help"))
 dp.message.register(process_cancel_cmd, Command(commands='cancel'))
 dp.message.register(process_set_profile_cmd, Command('set_profile'))
-# dp.message.register(process_gender_sent, StateFilter(Form.gender), F.text.in_(['м', 'ж']))
 dp.callback_query.register(process_gender_sent, lambda x: x.data in ['мужской', 'женский'])
 dp.message.register(process_weight_sent, StateFilter(Form.weight), F.text.isdigit())
 dp.message.register(process_height_sent, StateFilter(Form.height), F.text.isdigit())
 dp.message.register(process_age_sent, StateFilter(Form.age), F.text.isdigit())
-dp.callback_query.register(process_activity_sent, lambda c: c.data in ['1.2', '1.375', '1.55', '1.735', '1.9']),
+dp.callback_query.register(process_activity_sent, \
+                           lambda x: x.data in ['1.2', '1.375', '1.55', '1.735', '1.9'])
 dp.message.register(process_city_sent, StateFilter(Form.city), F.text.isalpha())
 dp.message.register(process_calorie_goal_sent, StateFilter(Form.calories_goal))
 dp.message.register(process_confirm_profile, StateFilter(Form.confirmation), F.text.lower() == 'да')
@@ -67,12 +67,16 @@ dp.message.register(process_log_food, Command('log_food'))
 dp.message.register(process_log_food_name, StateFilter(Form.log_food_name))
 dp.message.register(process_log_food_amount, StateFilter(Form.log_food_amount))
 dp.message.register(process_log_workout, Command('log_workout'))
-dp.callback_query.register(choose_workout, lambda c: c.data in ['9', '3.5', '7', '5', '4.5', '10'])
+dp.callback_query.register(choose_workout, \
+                           lambda x: x.data in ['9', '3.5', '7', '5', '4.5', '10'])
 dp.message.register(specify_duration, StateFilter(Form.log_workout))
+dp.message.register(process_check_progress_cmd, Command("check_progress"))
 
 
-# Запуск процесса поллинга новых апдейтов
 async def main():
+    """
+    Запуск процесса поллинга новых апдейтов
+    """
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
