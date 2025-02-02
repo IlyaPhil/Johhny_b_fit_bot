@@ -307,9 +307,8 @@ async def process_log_water_amount(message: types.Message, state: FSMContext):
     # Сохраняем введенное количество воды в храниище по ключу "logged_water"
     water_amount = int(message.text)
     user_dict[user_id]['logged_water'] = user_dict[user_id].get('logged_water') + water_amount
-    await message.answer(f"До выполнения суточной нормы осталось выпить\
-                          {user_dict[user_id].get('water_norm') -\
-                            user_dict[user_id].get('logged_water')} мл")
+    await message.answer(f"До выполнения суточной нормы осталось выпить "
+                         f"{user_dict[user_id].get('water_norm') - user_dict[user_id].get('logged_water')} мл")
     # Завершаем состояние после обработки
     await state.clear()
 
