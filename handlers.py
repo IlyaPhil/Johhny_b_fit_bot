@@ -457,14 +457,12 @@ async def process_check_progress_cmd(message: types.Message):
        f"Вода:\n"
        f"Выпито: {user_dict[user_id].get('logged_water')} "
        f"мл из {user_dict[user_id].get('water_norm')} мл\n"
-       f"Осталось: {user_dict[user_id].get('water_norm') \
-                    - user_dict[user_id].get('logged_water')} мл\n\n"
+       f"Осталось: {user_dict[user_id].get('water_norm') - user_dict[user_id].get('logged_water')} мл\n\n"
        f"Калории:\n"
        f"Потреблено: {user_dict[user_id].get('calories_consumed')} ккал "
-       f"из {user_dict[user_id].get('calories_goal') or \
-             user_dict[user_id].get('calories_norm')} ккал\n"
+       f"из {user_dict[user_id].get('calories_goal') or user_dict[user_id].get('calories_norm')} ккал\n"
        f"Сожжено: {user_dict[user_id].get('calories_burned')} ккал\n"
-       f"Баланс: {user_dict[user_id].get('logged_calories')} ккал\n"
+       f"Баланс: {user_dict[user_id].get('logged_calories')} ккал"
     )
 
     await message.answer(progress_message)
