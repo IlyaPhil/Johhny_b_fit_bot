@@ -3,3 +3,4 @@ aiohttp==3.11.7
 asyncio==3.4.3
 googletrans==4.0.2
 pydantic==2.10.6
+pydantic_settings==2.6.1
